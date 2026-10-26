@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Misión Espacial: Las Coordenadas Secretas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      font-family: 'Fredoka', sans-serif;
+      overflow: hidden;
+      height: 100dvh;
+      width: 100vw;
+      background: radial-gradient(circle at center, #0f172a 0%, #020617 100%);
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.4);
+      border-radius: 4px;
+    }
+    canvas {
+      image-rendering: crisp-edges;
+    }
+  </style>
+</head>
+<body class="text-white flex flex-col justify-between p-2 sm:p-4 box-border">
+
+  <!-- HEADER COMPACTO -->
+  <header class="w-full flex-none glass-panel rounded-2xl p-2.5 sm:p-3 flex items-center justify-between shadow-lg z-20">
+    <div class="flex items-center gap-2">
+      <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-cyan-500/20 border border-cyan-400/50 flex items-center justify-center text-xl sm:text-2xl shadow-inner">
+        🚀
+      </div>
+      <div>
+        <h1 class="text-base sm:text-xl font-bold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 leading-none">
+          Misión Espacial
+        </h1>
+        <p class="text-[10px] sm:text-xs text-cyan-300/80 font-medium">Coordenadas en el Plano</p>
+      </div>
+    </div>
+
+    <!-- Puntos y Controles -->
+    <div class="flex items-center gap-2">
+      <div class="glass-panel px-3 py-1 rounded-xl flex items-center gap-1.5 border-yellow-500/30">
+        <span class="text-yellow-400 text-sm sm:text-base">⭐</span>
+        <span id="score-display" class="font-bold text-yellow-300 text-sm sm:text-base">0</span>
+      </div>
+      <button onclick="toggleAudio()" id="audio-btn" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl glass-panel flex items-center justify-center text-base hover:bg-cyan-500/20 active:scale-95 transition">
+        🔊
+      </button>
+      <button onclick="showHelpModal()" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl glass-panel flex items-center justify-center text-base hover:bg-cyan-500/20 active:scale-95 transition text-cyan-300">
+        ❓
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL (MAXIMIZADO Y ADAPTATIVO SIN SCROLL) -->
+  <main class="w-full flex-1 my-2 flex flex-col md:flex-row gap-2 sm:gap-4 overflow-hidden min-h-0">
+    
+    <!-- PANEL DE CONTROL (IZQUIERDA O ARRIBA EN MÓVIL) -->
+    <section class="w-full md:w-80 lg:w-96 glass-panel rounded-2xl p-3 flex flex-col flex-none md:flex-1 overflow-hidden">
+      <!-- Selección de Modos -->
+      <div class="grid grid-cols-3 gap-1.5 p-1 bg-slate-950/60 rounded-xl mb-3 flex-none">
+        <button onclick="switchMode(1)" id="tab-1" class="py-1.5 text-xs font-bold rounded-lg transition-all text-center">
+          🛰️ Radar
+        </button>
+        <button onclick="switchMode(2)" id="tab-2" class="py-1.5 text-xs font-bold rounded-lg transition-all text-center">
+          ✨ Trazo
+        </button>
+        <button onclick="switchMode(3)" id="tab-3" class="py-1.5 text-xs font-bold rounded-lg transition-all text-center">
+          🎯 Ubica
+        </button>
+      </div>
+
+      <!-- Ajuste de Formato Eje X -->
+      <div class="flex items-center justify-between px-2 py-1.5 bg-cyan-950/40 border border-cyan-500/20 rounded-xl mb-3 flex-none">
+        <span class="text-xs text-cyan-200 font-semibold">Formato Eje Horizontal:</span>
+        <button onclick="toggleAxisMode()" id="axis-mode-btn" class="px-2.5 py-1 text-xs font-bold bg-cyan-500/30 hover:bg-cyan-500/40 border border-cyan-400/50 rounded-lg text-cyan-200 transition">
+          A - H (Letras)
+        </button>
+      </div>
+
+      <!-- Zona Dinámica del Modo -->
+      <div id="mode-content" class="flex-1 overflow-y-auto custom-scrollbar flex flex-col justify-between pr-1">
+        <!-- Generado dinámicamente por JavaScript -->
+      </div>
+    </section>
+
+    <!-- ÁREA DE REJILLA/CANVAS (DERECHA O ABAJO) -->
+    <section class="flex-1 glass-panel rounded-2xl p-2 sm:p-4 flex items-center justify-center min-h-0 relative overflow-hidden">
+      <div id="canvas-container" class="w-full h-full flex items-center justify-center relative">
+        <canvas id="gridCanvas" class="max-w-full max-h-full rounded-xl shadow-2xl border border-cyan-500/30 cursor-pointer"></canvas>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL DE INICIO / EXPLICACIÓN -->
+  <div id="welcome-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="glass-panel max-w-lg w-full rounded-3xl p-6 border-cyan-400/40 shadow-2xl text-center relative overflow-hidden">
+      <div class="w-16 h-16 bg-cyan-500/20 rounded-2xl border border-cyan-400/50 flex items-center justify-center text-3xl mx-auto mb-4 animate-bounce">
+        🛸
+      </div>
+      <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 mb-2">
+        ¡Bienvenido a la Misión Espacial!
+      </h2>
+      <p class="text-sm text-cyan-100/90 mb-5 leading-relaxed">
+        Aprende a localizar elementos en el universo usando coordenadas matematicas.
+      </p>
+
+      <!-- EXPLICACIÓN CLARA -->
+      <div class="bg-slate-900/80 rounded-2xl p-4 border border-cyan-500/20 mb-6 text-left space-y-3">
+        <div class="flex items-start gap-3">
+          <span class="w-7 h-7 rounded-lg bg-cyan-500/30 text-cyan-300 font-bold flex items-center justify-center shrink-0">1º</span>
+          <p class="text-xs text-slate-200">
+            <strong class="text-cyan-300">Columna (Eje Horizontal):</strong> Se mira de izquierda a derecha en la parte inferior del mapa.
+          </p>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="w-7 h-7 rounded-lg bg-purple-500/30 text-purple-300 font-bold flex items-center justify-center shrink-0">2º</span>
+          <p class="text-xs text-slate-200">
+            <strong class="text-purple-300">Fila (Eje Vertical):</strong> Se mira de abajo hacia arriba en el lateral izquierdo.
+          </p>
+        </div>
+        <div class="bg-cyan-950/60 p-2.5 rounded-xl border border-cyan-500/30 text-center text-xs text-cyan-200 font-medium">
+          📍 Ejemplo: Coordenada <span class="text-yellow-300 font-bold">(C, 4)</span> o <span class="text-yellow-300 font-bold">(3, 4)</span>
+        </div>
+      </div>
+
+      <button onclick="closeModal()" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold rounded-2xl text-base shadow-lg shadow-cyan-500/30 active:scale-95 transition">
+        🚀 ¡Empezar Misión!
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ESTADO DEL JUEGO
+    let currentMode = 1;
+    let useLetters = true; // Alterna entre A-H y 1-8
+    let score = 0;
+    let audioEnabled = true;
+
+    // AUDIO SINTETIZADO (Web Audio API)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playSound(type) {
+      if (!audioEnabled) return;
+      try {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+
+        if (type === 'click') {
+          osc.frequency.setValueAtTime(400, now);
+          osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+          gain.gain.setValueAtTime(0.1, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+          osc.start(now);
+          osc.stop(now + 0.05);
+        } else if (type === 'correct') {
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.08);
+          osc.frequency.setValueAtTime(783.99, now + 0.16);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+          osc.start(now);
+          osc.stop(now + 0.3);
+        } else if (type === 'error') {
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.setValueAtTime(160, now + 0.1);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        }
+      } catch (e) {}
+    }
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      document.getElementById('audio-btn').innerText = audioEnabled ? '🔊' : '🔇';
+    }
+
+    // CANVAS Y RENDERIZADO
+    const canvas = document.getElementById('gridCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('canvas-container');
+
+    const labelsX_letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    const labelsX_numbers = ['1', '2', '3', '4', '5', '6', '7', '8'];
+
+    // OBJETOS MODO 1
+    const mode1Objects = [
+      { id: 'alien', icon: '👾', name: 'Alíen', x: 6, y: 4, userX: '', userY: '', correct: false },
+      { id: 'ufo', icon: '🛸', name: 'Nave Espacial', x: 1, y: 7, userX: '', userY: '', correct: false },
+      { id: 'rocket', icon: '🚀', name: 'Cohete', x: 3, y: 5, userX: '', userY: '', correct: false },
+      { id: 'satellite', icon: '🛰️', name: 'Satélite', x: 5, y: 8, userX: '', userY: '', correct: false },
+      { id: 'planet', icon: '🪐', name: 'Planeta', x: 4, y: 6, userX: '', userY: '', correct: false },
+      { id: 'comet', icon: '☄️', name: 'Cometa', x: 3, y: 2, userX: '', userY: '', correct: false },
+      { id: 'astro', icon: '👨‍🚀', name: 'Astronauta', x: 7, y: 1, userX: '', userY: '', correct: false },
+      { id: 'telescope', icon: '🔭', name: 'Telescopio', x: 8, y: 3, userX: '', userY: '', correct: false }
+    ];
+
+    // SECUENCIAS MODO 2 (UNE LOS PUNTOS)
+    const mode2Figures = [
+      {
+        name: 'Criatura Estelar',
+        pairs: [
+          { start: [5,0], end: [5,4] },
+          { start: [3,3], end: [1,3] },
+          { start: [1,3], end: [1,7] },
+          { start: [1,7], end: [3,7] },
+          { start: [7,0], end: [5,0] },
+          { start: [1,5], end: [3,5] }
+        ]
+      },
+      {
+        name: 'Cohete Espacial',
+        pairs: [
+          { start: [4,8], end: [2,5] },
+          { start: [2,5], end: [2,1] },
+          { start: [2,1], end: [6,1] },
+          { start: [6,1], end: [6,5] },
+          { start: [6,5], end: [4,8] },
+          { start: [3,3], end: [5,3] }
+        ]
+      }
+    ];
+    let activeFigureIndex = 0;
+    let connectedLines = [];
+    let selectedPoint = null;
+
+    // PREGUNTAS MODO 3 (UBICA EN EL PLANO)
+    let mode3Target = null;
+    let mode3Streak = 0;
+
+    function resizeCanvas() {
+      const size = Math.min(container.clientWidth, container.clientHeight) - 10;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = size * dpr;
+      canvas.height = size * dpr;
+      canvas.style.width = size + 'px';
+      canvas.style.height = size + 'px';
+      ctx.scale(dpr, dpr);
+      renderGrid();
+    }
+
+    function renderGrid() {
+      const size = parseFloat(canvas.style.width);
+      if (!size) return;
+      const padding = 45;
+      const gridSize = size - padding * 2;
+      const step = gridSize / 8;
+
+      ctx.clearRect(0, 0, size, size);
+
+      // Fondo de la rejilla
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.fillRect(padding, padding, gridSize, gridSize);
+
+      // Líneas horizontales y verticales
+      ctx.lineWidth = 1.5;
+      for (let i = 0; i <= 8; i++) {
+        const pos = padding + i * step;
+
+        // Verticales
+        ctx.strokeStyle = i === 0 ? 'rgba(56, 189, 248, 0.8)' : 'rgba(56, 189, 248, 0.2)';
+        ctx.beginPath();
+        ctx.moveTo(pos, padding);
+        ctx.lineTo(pos, padding + gridSize);
+        ctx.stroke();
+
+        // Horizontales
+        ctx.strokeStyle = i === 8 ? 'rgba(56, 189, 248, 0.8)' : 'rgba(56, 189, 248, 0.2)';
+        ctx.beginPath();
+        ctx.moveTo(padding, pos);
+        ctx.lineTo(padding + gridSize, pos);
+        ctx.stroke();
+      }
+
+      // Etiquetas Eje X (Abajo)
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 13px Fredoka, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const xLabels = useLetters ? labelsX_letters : labelsX_numbers;
+      for (let i = 0; i < 8; i++) {
+        const xPos = padding + (i + 0.5) * step;
+        ctx.fillText(xLabels[i], xPos, padding + gridSize + 10);
+      }
+
+      // Etiquetas Eje Y (Izquierda, 1 a 8 de abajo hacia arriba)
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (let i = 1; i <= 8; i++) {
+        const yPos = padding + gridSize - (i - 0.5) * step;
+        ctx.fillText(i.toString(), padding - 10, yPos);
+      }
+
+      // RENDERIZADO SEGÚN EL MODO
+      if (currentMode === 1) {
+        mode1Objects.forEach(obj => {
+          const cx = padding + (obj.x - 0.5) * step;
+          const cy = padding + gridSize - (obj.y - 0.5) * step;
+
+          ctx.font = `${step * 0.55}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(obj.icon, cx, cy);
+
+          if (obj.correct) {
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, step * 0.4, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        });
+      } else if (currentMode === 2) {
+        // Modo Trazo: Dibujar líneas conectadas
+        connectedLines.forEach(line => {
+          const x1 = padding + line.start[0] * step;
+          const y1 = padding + gridSize - line.start[1] * step;
+          const x2 = padding + line.end[0] * step;
+          const y2 = padding + gridSize - line.end[1] * step;
+
+          ctx.strokeStyle = '#f43f5e';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        });
+
+        // Dibujar Puntos Intersección
+        for (let x = 0; x <= 8; x++) {
+          for (let y = 0; y <= 8; y++) {
+            const px = padding + x * step;
+            const py = padding + gridSize - y * step;
+            const isSelected = selectedPoint && selectedPoint[0] === x && selectedPoint[1] === y;
+
+            ctx.fillStyle = isSelected ? '#f43f5e' : '#38bdf8';
+            ctx.beginPath();
+            ctx.arc(px, py, isSelected ? 7 : 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    // CAMBIO DE NAVEGACIÓN ENTRE MODOS
+    function switchMode(mode) {
+      playSound('click');
+      currentMode = mode;
+      [1, 2, 3].forEach(m => {
+        const btn = document.getElementById(`tab-${m}`);
+        if (m === mode) {
+          btn.className = 'py-1.5 text-xs font-bold rounded-lg transition-all text-center bg-cyan-500 text-slate-950 shadow-md';
+        } else {
+          btn.className = 'py-1.5 text-xs font-bold rounded-lg transition-all text-center text-cyan-200/70 hover:text-cyan-100 hover:bg-white/5';
+        }
+      });
+      renderModeContent();
+      renderGrid();
+    }
+
+    function toggleAxisMode() {
+      playSound('click');
+      useLetters = !useLetters;
+      document.getElementById('axis-mode-btn').innerText = useLetters ? 'A - H (Letras)' : '1 - 8 (Números)';
+      renderModeContent();
+      renderGrid();
+    }
+
+    // RENDERIZADO DEL PANEL DE CONTROL SEGÚN MODO
+    function renderModeContent() {
+      const container = document.getElementById('mode-content');
+      const xLabels = useLetters ? labelsX_letters : labelsX_numbers;
+
+      if (currentMode === 1) {
+        let html = `<div class="space-y-2">`;
+        mode1Objects.forEach((obj, idx) => {
+          html += `
+            <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 border border-cyan-500/20">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">${obj.icon}</span>
+                <span class="text-xs font-bold text-slate-200">${obj.name}</span>
+              </div>
+              <div class="flex items-center gap-1">
+                <select onchange="updateUserCoord(${idx}, 'userX', this.value)" class="bg-slate-950 text-cyan-300 font-bold text-xs p-1.5 rounded-lg border border-cyan-500/40">
+                  <option value="">Col (X)</option>
+                  ${xLabels.map((l, i) => `<option value="${i+1}" ${obj.userX == (i+1) ? 'selected' : ''}>${l}</option>`).join('')}
+                </select>
+                <select onchange="updateUserCoord(${idx}, 'userY', this.value)" class="bg-slate-950 text-purple-300 font-bold text-xs p-1.5 rounded-lg border border-purple-500/40">
+                  <option value="">Fila (Y)</option>
+                  ${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${obj.userY == n ? 'selected' : ''}>${n}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          `;
+        });
+        html += `</div>
+          <button onclick="checkMode1()" class="w-full mt-3 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl shadow-lg transition">
+            ✔️ Comprobar Coordenadas
+          </button>`;
+        container.innerHTML = html;
+      } else if (currentMode === 2) {
+        const fig = mode2Figures[activeFigureIndex];
+        container.innerHTML = `
+          <div class="space-y-3">
+            <div class="p-3 bg-slate-900/70 rounded-xl border border-cyan-500/20">
+              <h3 class="text-sm font-bold text-cyan-300 mb-1">Traza la figura: ${fig.name}</h3>
+              <p class="text-xs text-slate-300">Toca dos puntos en el plano para conectar cada par:</p>
+            </div>
+            <div class="space-y-1.5">
+              ${fig.pairs.map((p, i) => {
+                const x1 = useLetters ? labelsX_letters[p.start[0]-1] || p.start[0] : p.start[0];
+                const x2 = useLetters ? labelsX_letters[p.end[0]-1] || p.end[0] : p.end[0];
+                const done = connectedLines.some(l => 
+                  (l.start[0]===p.start[0] && l.start[1]===p.start[1] && l.end[0]===p.end[0] && l.end[1]===p.end[1]) ||
+                  (l.start[0]===p.end[0] && l.start[1]===p.end[1] && l.end[0]===p.start[0] && l.end[1]===p.start[1])
+                );
+                return `
+                  <div class="px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-between ${done ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-900/40 text-slate-300'}">
+                    <span>Par ${i+1}: (${x1}, ${p.start[1]}) ➔ (${x2}, ${p.end[1]})</span>
+                    <span>${done ? '✅' : '⏳'}</span>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+          <button onclick="resetMode2()" class="w-full mt-3 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold text-xs rounded-xl transition">
+            🔄 Reiniciar Trazo
+          </button>
+        `;
+      } else if (currentMode === 3) {
+        if (!mode3Target) generateMode3Target();
+        const labelX = useLetters ? labelsX_letters[mode3Target.x - 1] : mode3Target.x;
+        container.innerHTML = `
+          <div class="flex-1 flex flex-col justify-center items-center text-center p-4 bg-slate-900/70 rounded-2xl border border-cyan-500/30">
+            <span class="text-4xl mb-2">${mode3Target.icon}</span>
+            <p class="text-xs text-slate-300 mb-2">Ubica el objeto en la coordenada:</p>
+            <div class="text-2xl font-black text-yellow-300 bg-slate-950 px-4 py-2 rounded-xl border border-yellow-500/40 mb-4">
+              (${labelX}, ${mode3Target.y})
+            </div>
+            <p class="text-[11px] text-cyan-200/70">Toca el punto exacto en la cuadrícula derecha.</p>
+          </div>
+        `;
+      }
+    }
+
+    function updateUserCoord(idx, key, val) {
+      mode1Objects[idx][key] = val;
+    }
+
+    function checkMode1() {
+      let correctCount = 0;
+      mode1Objects.forEach(obj => {
+        if (parseInt(obj.userX) === obj.x && parseInt(obj.userY) === obj.y) {
+          obj.correct = true;
+          correctCount++;
+        } else {
+          obj.correct = false;
+        }
+      });
+      if (correctCount === mode1Objects.length) {
+        playSound('correct');
+        score += 100;
+        document.getElementById('score-display').innerText = score;
+      } else {
+        playSound('error');
+      }
+      renderModeContent();
+      renderGrid();
+    }
+
+    function resetMode2() {
+      connectedLines = [];
+      selectedPoint = null;
+      renderModeContent();
+      renderGrid();
+    }
+
+    function generateMode3Target() {
+      const icons = ['🛸', '🚀', '🛰️', '🪐', '☄️', '⭐'];
+      mode3Target = {
+        icon: icons[Math.floor(Math.random() * icons.length)],
+        x: Math.floor(Math.random() * 8) + 1,
+        y: Math.floor(Math.random() * 8) + 1
+      };
+    }
+
+    // INTERACCIÓN CON EL CANVAS
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const clickY = e.clientY - rect.top;
+
+      const size = parseFloat(canvas.style.width);
+      const padding = 45;
+      const gridSize = size - padding * 2;
+      const step = gridSize / 8;
+
+      if (currentMode === 2) {
+        // Modo Trazo: Detectar clic en intersección de puntos (0 a 8)
+        const gridX = Math.round((clickX - padding) / step);
+        const gridY = 8 - Math.round((clickY - padding) / step);
+
+        if (gridX >= 0 && gridX <= 8 && gridY >= 0 && gridY <= 8) {
+          playSound('click');
+          if (!selectedPoint) {
+            selectedPoint = [gridX, gridY];
+          } else {
+            if (selectedPoint[0] !== gridX || selectedPoint[1] !== gridY) {
+              connectedLines.push({ start: selectedPoint, end: [gridX, gridY] });
+              playSound('correct');
+            }
+            selectedPoint = null;
+          }
+          renderModeContent();
+          renderGrid();
+        }
+      } else if (currentMode === 3) {
+        // Modo Ubica: Detectar clic en casillas (1 a 8)
+        const cellX = Math.floor((clickX - padding) / step) + 1;
+        const cellY = 8 - Math.floor((clickY - padding) / step);
+
+        if (cellX === mode3Target.x && cellY === mode3Target.y) {
+          playSound('correct');
+          score += 20;
+          document.getElementById('score-display').innerText = score;
+          generateMode3Target();
+          renderModeContent();
+        } else {
+          playSound('error');
+        }
+      }
+    });
+
+    // MODAL HELP / BIENVENIDA
+    function closeModal() {
+      playSound('click');
+      document.getElementById('welcome-modal').classList.add('hidden');
+    }
+
+    function showHelpModal() {
+      playSound('click');
+      document.getElementById('welcome-modal').classList.remove('hidden');
+    }
+
+    // INICIALIZACIÓN Y EVENTOS RESPONSIVOS
+    window.addEventListener('resize', resizeCanvas);
+    document.addEventListener('DOMContentLoaded', () => {
+      resizeCanvas();
+      switchMode(1);
+    });
+  </script>
+</body>
+</html>
